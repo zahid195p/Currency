@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Currency Converter</title>
+
+    <!-- PWA Manifest and Theme -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Converter">
+    <link rel="apple-touch-icon" href="https://placehold.co/192x192/2563eb/ffffff?text=C">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Custom Styles -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .currency-select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3e%3cpolyline points="6 9 12 15 18 9"%3e%3c/polyline%3e%3c/svg%3e');
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+        /* Hide number input spinners */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+          -webkit-appearance: none; 
+          margin: 0; 
+        }
+        input[type=number] {
+          -moz-appearance: textfield;
+        }
+        .modal-bg {
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none; /* Hidden by default */
+        }
+        .modal-bg.active {
+            display: flex; /* Shown when active */
+        }
+        .spinner {
+            border: 2px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top: 2px solid #2563eb;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+    <div class="max-w-2xl mx-auto">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-blue-600">Multi-Currency Converter</h1>
+            <p id="lastUpdated" class="text-sm text-gray-500 mt-1">Fetching latest rates...</p>
+        </header>
+
+        <!-- Conversion List -->
+        <div id="conversionList" class="space-y-3">
+            <!-- Conversion rows will be dynamically inserted here -->
+        </div>
+
+        <!-- AI Feature Button -->
+        <div class="mt-6">
+            <button id="getTravelInsightBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg flex items-center justify-center space-x-2">
+                <i class="ph-airplane-takeoff text-2xl"></i>
+                <span>✨ Get Travel Insight</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- AI Insight Modal -->
+    <div id="aiInsightModal" class="fixed inset-0 modal-bg items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-lg shadow-2xl w-full max-w-md">
+            <h2 class="text-xl font-bold text-purple-600">Travel Budget Insight</h2>
+            <div class="my-4">
+                <p class="text-sm text-gray-600">Get an AI-powered estimate for your travel budget.</p>
+                <div class="mt-2">
+                    <label for="destinationCurrencySelect" class="block text-sm font-medium text-gray-700">Select Destination Currency</label>
+                    <select id="destinationCurrencySelect" class="mt-1 block w-full currency-select border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"></select>
+                </div>
+            </div>
+            <div id="aiInsightResult" class="mt-4 text-left p-3 bg-gray-50 rounded-lg min-h-[100px]">
+                <!-- AI response will be shown here -->
+            </div>
+            <div class="flex justify-between items-center mt-4">
+                <button onclick="closeModal('aiInsightModal')" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg">Close</button>
+                <button id="generateInsightBtn" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg flex items-center">
+                    <span class="mr-2">Generate</span>
+                    <div id="ai-spinner" class="spinner hidden"></div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION & ELEMENTS ---
+        const conversionList = document.getElementById('conversionList');
+        const lastUpdatedEl = document.getElementById('lastUpdated');
+        
+        let rates = {};
+        let lastEditedRowIndex = 0;
+        const currencies = {
+            "USD": { name: "US Dollar", symbol: "$" }, "EUR": { name: "Euro", symbol: "€" }, "JPY": { name: "Japanese Yen", symbol: "¥" },
+            "GBP": { name: "British Pound", symbol: "£" }, "AUD": { name: "Australian Dollar", symbol: "A$" }, "CAD": { name: "Canadian Dollar", symbol: "C$" },
+            "CHF": { name: "Swiss Franc", symbol: "Fr" }, "CNY": { name: "Chinese Yuan", symbol: "¥" }, "SEK": { name: "Swedish Krona", symbol: "kr" },
+            "NZD": { name: "New Zealand Dollar", symbol: "NZ$" }, "MXN": { name: "Mexican Peso", symbol: "$" }, "SGD": { name: "Singapore Dollar", symbol: "S$" },
+            "HKD": { name: "Hong Kong Dollar", symbol: "HK$" }, "NOK": { name: "Norwegian Krone", symbol: "kr" }, "KRW": { name: "South Korean Won", symbol: "₩" },
+            "TRY": { name: "Turkish Lira", symbol: "₺" }, "RUB": { name: "Russian Ruble", symbol: "₽" }, "INR": { name: "Indian Rupee", symbol: "₹" },
+            "BRL": { name: "Brazilian Real", symbol: "R$" }, "ZAR": { name: "South African Rand", symbol: "R" }, "PKR": { name: "Pakistani Rupee", symbol: "Rs" },
+            "SAR": { name: "Saudi Riyal", symbol: "SR" }, "AED": { name: "UAE Dirham", symbol: "DH" }, "THB": { name: "Thai Baht", symbol: "฿" },
+            "MYR": { name: "Malaysian Ringgit", symbol: "RM" }
+        };
+        let targetCurrencies = ['PKR', 'CNY', 'EUR', 'TRY', 'USD', 'SAR', 'GBP', 'INR', 'AED', 'JPY'];
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadState(); 
+            renderConversionRows();
+            fetchRates();
+            document.getElementById('getTravelInsightBtn').addEventListener('click', onOpenTravelInsightModal);
+            document.getElementById('generateInsightBtn').addEventListener('click', onGenerateInsight);
+        });
+
+        // --- CORE FUNCTIONS ---
+        async function fetchRates() {
+            const API_URL_USD_BASE = 'https://open.er-api.com/v6/latest/USD';
+            try {
+                const response = await fetch(API_URL_USD_BASE);
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+                if (data.result === 'error') throw new Error(data['error-type']);
+                
+                rates = data.rates;
+                const date = new Date(data.time_last_update_utc).toLocaleDateString();
+                localStorage.setItem('currencyRates', JSON.stringify(rates));
+                localStorage.setItem('ratesDate', date);
+                displayRatesInfo(date, true);
+                
+                const firstInput = document.querySelector('.conversion-input[data-index="0"]');
+                if (firstInput && firstInput.value === '') {
+                    firstInput.value = '100.00';
+                }
+                const baseAmount = parseFloat(firstInput.value) || 100;
+                updateAllConversions(baseAmount, targetCurrencies[0], 0);
+                
+            } catch (error) {
+                console.error("Failed to fetch new rates:", error);
+                const savedRates = localStorage.getItem('currencyRates');
+                if (savedRates) {
+                    rates = JSON.parse(savedRates);
+                    const savedDate = localStorage.getItem('ratesDate');
+                    displayRatesInfo(savedDate, false);
+                    const firstInput = document.querySelector('.conversion-input[data-index="0"]');
+                     if (firstInput && firstInput.value === '') {
+                        firstInput.value = '100.00';
+                    }
+                    const baseAmount = parseFloat(firstInput.value) || 100;
+                    updateAllConversions(baseAmount, targetCurrencies[0], 0);
+                } else {
+                    lastUpdatedEl.textContent = "Could not fetch rates. Please check internet.";
+                }
+            }
+        }
+        
+        function convert(amount, fromCurrency, toCurrency) {
+            if (!rates[fromCurrency] || !rates[toCurrency]) return 0;
+            const amountInUSD = amount / rates[fromCurrency];
+            return amountInUSD * rates[toCurrency];
+        }
+        
+        function updateAllConversions(baseAmount, baseCurrency, editedRowIndex) {
+            document.querySelectorAll('.conversion-row').forEach((row, index) => {
+                if (index === editedRowIndex) return;
+                const outputInput = row.querySelector('.conversion-input');
+                const targetCurrency = row.querySelector('.target-currency-select').value;
+                const convertedAmount = convert(baseAmount, baseCurrency, targetCurrency);
+                outputInput.value = convertedAmount.toFixed(2);
+            });
+        }
+
+        function handleInputChange(event) {
+            const input = event.target;
+            const index = parseInt(input.dataset.index, 10);
+            lastEditedRowIndex = index;
+            const baseAmount = parseFloat(input.value) || 0;
+            const baseCurrency = document.querySelector(`.target-currency-select[data-index="${index}"]`).value;
+            updateAllConversions(baseAmount, baseCurrency, index);
+        }
+
+        // --- UI RENDERING ---
+        function renderConversionRows() {
+            conversionList.innerHTML = '';
+            targetCurrencies.forEach((currency, index) => {
+                const row = document.createElement('div');
+                row.className = 'conversion-row bg-white p-3 md:p-4 rounded-lg shadow-md border border-gray-200 flex items-center justify-between space-x-2';
+                
+                const currencyOptionsHtml = Object.keys(currencies)
+                    .sort((a, b) => currencies[a].name.localeCompare(currencies[b].name))
+                    .map(code => `<option value="${code}" ${code === currency ? 'selected' : ''}>${code} - ${currencies[code].name}</option>`)
+                    .join('');
+
+                row.innerHTML = `
+                    <div class="flex items-center flex-grow min-w-0">
+                        <span class="currency-symbol text-xl md:text-2xl font-bold text-gray-500 mr-2">${currencies[currency].symbol}</span>
+                        <input type="number" class="conversion-input w-full text-2xl md:text-3xl font-bold border-0 p-2 focus:ring-0 bg-transparent" data-index="${index}" placeholder="0.00" step="any">
+                    </div>
+                    <select class="target-currency-select currency-select text-base md:text-lg font-medium border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500" data-index="${index}">
+                        ${currencyOptionsHtml}
+                    </select>
+                `;
+                conversionList.appendChild(row);
+            });
+            
+            document.querySelectorAll('.conversion-input').forEach(input => input.addEventListener('input', handleInputChange));
+            document.querySelectorAll('.target-currency-select').forEach(select => {
+                select.addEventListener('change', (e) => {
+                    const index = parseInt(e.target.dataset.index, 10);
+                    const newCurrency = e.target.value;
+                    targetCurrencies[index] = newCurrency;
+                    
+                    const row = e.target.closest('.conversion-row');
+                    row.querySelector('.currency-symbol').textContent = currencies[newCurrency].symbol;
+
+                    const lastEditedInput = document.querySelector(`.conversion-input[data-index="${lastEditedRowIndex}"]`);
+                    const baseAmount = parseFloat(lastEditedInput.value) || 0;
+                    const baseCurrency = targetCurrencies[lastEditedRowIndex];
+                    updateAllConversions(baseAmount, baseCurrency, lastEditedRowIndex);
+                    
+                    saveState();
+                });
+            });
+        }
+        
+        function displayRatesInfo(date, isLive) {
+            lastUpdatedEl.textContent = `${isLive ? 'Live rates from' : 'Using offline rates from'} ${date}`;
+        }
+        
+        // --- STATE & LOCALSTORAGE ---
+        function saveState() {
+            localStorage.setItem('targetCurrencies', JSON.stringify(targetCurrencies));
+        }
+
+        function loadState() {
+            const savedTargets = localStorage.getItem('targetCurrencies');
+            if (savedTargets) {
+                targetCurrencies = JSON.parse(savedTargets);
+            }
+        }
+        
+        // --- MODAL & AI ---
+        function openModal(modalId) { document.getElementById(modalId).classList.add('active'); }
+        function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
+
+        function onOpenTravelInsightModal() {
+            const destinationSelect = document.getElementById('destinationCurrencySelect');
+            const baseCurrency = targetCurrencies[lastEditedRowIndex];
+            
+            // Populate dropdown with all currencies EXCEPT the base currency
+            destinationSelect.innerHTML = Object.keys(currencies)
+                .filter(code => code !== baseCurrency)
+                .sort((a, b) => currencies[a].name.localeCompare(currencies[b].name))
+                .map(code => `<option value="${code}">${code} - ${currencies[code].name}</option>`)
+                .join('');
+            
+            document.getElementById('aiInsightResult').innerHTML = ''; // Clear previous results
+            openModal('aiInsightModal');
+        }
+
+        async function onGenerateInsight() {
+            const btn = document.getElementById('generateInsightBtn');
+            const spinner = document.getElementById('ai-spinner');
+            const resultDiv = document.getElementById('aiInsightResult');
+
+            btn.disabled = true;
+            spinner.classList.remove('hidden');
+            resultDiv.innerHTML = '';
+
+            const baseAmount = parseFloat(document.querySelector(`.conversion-input[data-index="${lastEditedRowIndex}"]`).value) || 0;
+            const baseCurrencyCode = targetCurrencies[lastEditedRowIndex];
+            const destinationCurrencyCode = document.getElementById('destinationCurrencySelect').value;
+            const convertedAmount = convert(baseAmount, baseCurrencyCode, destinationCurrencyCode);
+
+            const prompt = `I have ${baseAmount.toFixed(2)} ${currencies[baseCurrencyCode].name} (${baseCurrencyCode}), which is about ${convertedAmount.toFixed(2)} ${currencies[destinationCurrencyCode].name} (${destinationCurrencyCode}). I am planning a trip. Provide a brief, bulleted list of what this amount of money could typically cover for a solo traveler for one day in a major city of the destination country. Focus on mid-range options (e.g., a decent meal, not fine dining; public transport, not taxis). Keep the tone helpful and concise.`;
+
+            const result = await callGemini(prompt);
+            resultDiv.innerHTML = result.replace(/\n/g, '<br>').replace(/\*/g, '&bull; '); // Basic markdown conversion
+
+            btn.disabled = false;
+            spinner.classList.add('hidden');
+        }
+
+        async function callGemini(prompt) {
+            const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=`; // Key is blank for security
+            const payload = { contents: [{ parts: [{ text: prompt }] }] };
+            try {
+                const response = await fetch(GEMINI_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+                const data = await response.json();
+                return data.candidates[0].content.parts[0].text;
+            } catch (error) {
+                console.error("Gemini API call failed:", error);
+                return "Could not retrieve AI insight at this time. Please check your connection.";
+            }
+        }
+        
+    </script>
+    
+    <!-- PWA Functionality -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js').catch(err => console.error('SW reg failed: ', err));
+            });
+        }
+    </script>
+    
+    <!-- Virtual Files for PWA -->
+    <script>
+        if (window.location.pathname.endsWith('/manifest.json')) {
+            const manifest = {
+                "name": "Multi-Currency Converter", "short_name": "Converter", "start_url": ".", "display": "standalone",
+                "background_color": "#f3f4f6", "theme_color": "#ffffff", "description": "An offline-first multi-currency converter.",
+                "icons": [{"src": "https://placehold.co/192x192/2563eb/ffffff?text=C", "sizes": "192x192", "type": "image/png"},
+                          {"src": "https://placehold.co/512x512/2563eb/ffffff?text=C", "sizes": "512x512", "type": "image/png"}]
+            };
+            self.addEventListener('fetch', e => e.respondWith(new Response(JSON.stringify(manifest), { headers: { 'Content-Type': 'application/json' } })));
+        }
+        
+        if (window.location.pathname.endsWith('/service-worker.js')) {
+            const swContent = `
+                const CACHE_NAME = 'currency-converter-v4';
+                const ASSETS_TO_CACHE = ['/', 'index.html', 'https://cdn.tailwindcss.com', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap'];
+                self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS_TO_CACHE))));
+                self.addEventListener('activate', e => e.waitUntil(caches.keys().then(n => Promise.all(n.map(c => c !== CACHE_NAME ? caches.delete(c) : null)))));
+                self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
+            `;
+            self.addEventListener('fetch', e => e.respondWith(new Response(swContent, { headers: { 'Content-Type': 'application/javascript' } })));
+        }
+    </script>
+</body>
+</html>
