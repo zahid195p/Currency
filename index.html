@@ -1,362 +1,1169 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Currency Converter</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Sarf">
+  <meta name="theme-color" content="#F5F0E8" id="mTheme">
+  <title>Sarf — صرف</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
-    <!-- PWA Manifest and Theme -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#ffffff">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Converter">
-    <link rel="apple-touch-icon" href="https://placehold.co/192x192/2563eb/ffffff?text=C">
+    /* ── THEME TOKENS ── */
+    :root {
+      --bg:       #F5F0E8;
+      --surf:     #FFFFFF;
+      --border:   #E2DAD0;
+      --text:     #111111;
+      --sub:      #8A8A8E;
+      --accent:   #C85D08;
+      --danger:   #E53E3E;
+      --live:     #22C55E;
+      --warn:     #F59E0B;
+      --np-bg:    #C9C4BC;
+      --np-num:   #F8F6F3;
+      --np-op:    #ACA7A0;
+      --np-done:  #C85D08;
+      --radius:   15px;
+      --transition: background 0.22s, color 0.22s, border-color 0.22s;
+    }
+    [data-dark] {
+      --bg:       #0C0C0E;
+      --surf:     #1C1C1E;
+      --border:   #2C2C2E;
+      --text:     #F2F0EC;
+      --sub:      #8A8A8E;
+      --accent:   #FF9500;
+      --danger:   #FF453A;
+      --live:     #30D158;
+      --warn:     #FFD60A;
+      --np-bg:    #1C1C1E;
+      --np-num:   #2C2C2E;
+      --np-op:    #3A3A3C;
+      --np-done:  #FF9500;
+    }
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    /* ── BASE ── */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding-bottom: 385px;
+      transition: var(--transition);
+    }
 
-    <!-- Custom Styles -->
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
-        }
-        .currency-select {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3e%3cpolyline points="6 9 12 15 18 9"%3e%3c/polyline%3e%3c/svg%3e');
-            background-repeat: no-repeat;
-            background-position: right 0.5rem center;
-            background-size: 1.5em 1.5em;
-            padding-right: 2.5rem;
-        }
-        /* Hide number input spinners */
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { 
-          -webkit-appearance: none; 
-          margin: 0; 
-        }
-        input[type=number] {
-          -moz-appearance: textfield;
-        }
-        .modal-bg {
-            background-color: rgba(0, 0, 0, 0.6);
-            display: none; /* Hidden by default */
-        }
-        .modal-bg.active {
-            display: flex; /* Shown when active */
-        }
-        .spinner {
-            border: 2px solid rgba(0,0,0,0.1);
-            border-radius: 50%;
-            border-top: 2px solid #2563eb;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
+    /* ── HEADER ── */
+    #hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 18px 13px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      transition: var(--transition);
+    }
+    .hdr-left { display: flex; flex-direction: column; gap: 3px; }
+    .hdr-left h1 {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.6px;
+      line-height: 1;
+    }
+    .hdr-left h1 span {
+      font-weight: 400;
+      font-size: 16px;
+      opacity: 0.5;
+      margin-left: 4px;
+    }
+    .badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--sub);
+      letter-spacing: 0.1px;
+    }
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--sub);
+      flex-shrink: 0;
+      transition: background 0.4s;
+    }
+    .dot.live    { background: var(--live); }
+    .dot.cached  { background: var(--warn); }
+    .dot.stale   { background: var(--danger); }
+    .dot.fallback{ background: var(--sub); }
+    .hdr-right { display: flex; gap: 8px; align-items: center; }
+    .ic {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      background: var(--surf);
+      color: var(--text);
+      font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: var(--transition);
+      flex-shrink: 0;
+    }
+    .ic:active { opacity: 0.7; }
+
+    /* ── ROW LIST ── */
+    #rlist {
+      padding: 13px 13px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    /* ── SINGLE ROW ── */
+    .row {
+      display: flex;
+      align-items: stretch;
+      background: var(--surf);
+      border-radius: var(--radius);
+      border: 1.5px solid var(--border);
+      overflow: hidden;
+      transition: border-color 0.18s, background 0.22s, opacity 0.18s;
+      position: relative;
+    }
+    .row.active { border-color: var(--accent); }
+    .row.drag-over { border-color: var(--accent); border-style: dashed; }
+    .row.dragging  { opacity: 0.45; }
+
+    /* left panel */
+    .rl {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 6px;
+      gap: 5px;
+      border-right: 1px solid var(--border);
+      min-width: 68px;
+      flex-shrink: 0;
+      transition: border-color 0.22s;
+    }
+    .dh {
+      font-size: 15px;
+      color: var(--sub);
+      cursor: grab;
+      padding: 4px 6px;
+      border-radius: 6px;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      line-height: 1;
+    }
+    .dh:active { background: var(--border); cursor: grabbing; }
+    .cb {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 3px 4px;
+      border-radius: 8px;
+      transition: background 0.12s;
+    }
+    .cb:active { background: var(--border); }
+    .cb .fl { font-size: 25px; line-height: 1.1; }
+    .cb .cd { font-size: 10px; font-weight: 800; letter-spacing: 0.6px; color: var(--text); }
+    .rm {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--danger);
+      border: none;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      line-height: 1;
+      flex-shrink: 0;
+      transition: opacity 0.15s;
+    }
+    .rm:active { opacity: 0.7; }
+
+    /* right panel */
+    .rr {
+      flex: 1;
+      min-width: 0;
+      padding: 10px 12px 10px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 3px;
+      cursor: pointer;
+    }
+    .amtrow {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .amt {
+      font-family: ui-monospace, 'SF Mono', 'Menlo', 'Courier New', monospace;
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -1.2px;
+      color: var(--text);
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      transition: color 0.18s;
+    }
+    .row.active .amt { color: var(--accent); }
+    .cp {
+      background: none;
+      border: none;
+      color: var(--sub);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 3px;
+      opacity: 0.55;
+      flex-shrink: 0;
+      transition: opacity 0.15s;
+      line-height: 1;
+    }
+    .cp:active { opacity: 1; }
+    .unit {
+      font-size: 11px;
+      color: var(--sub);
+      font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: 0.1px;
+    }
+
+    /* ── ADD BUTTON ── */
+    #addBtn {
+      display: block;
+      margin: 9px 13px 0;
+      width: calc(100% - 26px);
+      padding: 13px;
+      border-radius: var(--radius);
+      border: 2px dashed var(--border);
+      background: none;
+      color: var(--accent);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: var(--transition);
+      letter-spacing: 0.1px;
+    }
+    #addBtn:active { background: var(--border); }
+
+    /* ── CURRENCY PICKER ── */
+    #pOvl {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 60;
+      display: flex;
+      align-items: flex-end;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    #pOvl.open { opacity: 1; pointer-events: all; }
+    #pSheet {
+      width: 100%;
+      max-height: 80vh;
+      background: var(--surf);
+      border-radius: 22px 22px 0 0;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(110%);
+      transition: transform 0.28s cubic-bezier(0.32,0.72,0,1);
+      overflow: hidden;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    #pOvl.open #pSheet { transform: translateY(0); }
+    .pgrip {
+      width: 36px; height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 10px auto 4px;
+      flex-shrink: 0;
+    }
+    .phdr {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 13px 11px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #pSrch {
+      flex: 1;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 13px;
+      font-size: 15px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: inherit;
+      outline: none;
+      transition: var(--transition), border-color 0.15s;
+    }
+    #pSrch:focus { border-color: var(--accent); }
+    #pList {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      flex: 1;
+    }
+    .pi {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .pi:active { background: var(--border); }
+    .pi.sel .picode { color: var(--accent); }
+    .pifl  { font-size: 23px; flex-shrink: 0; }
+    .picode { font-weight: 700; font-size: 14px; }
+    .piname { color: var(--sub); font-size: 12px; }
+    .pempty { padding: 24px; text-align: center; color: var(--sub); font-size: 14px; }
+
+    /* ── NUMPAD ── */
+    #np {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--np-bg);
+      z-index: 50;
+      transform: translateY(110%);
+      transition: transform 0.28s cubic-bezier(0.32,0.72,0,1);
+      border-top: 1px solid rgba(0,0,0,0.12);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    #np.open { transform: translateY(0); }
+
+    /* numpad top bar */
+    #npBar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--surf);
+      border-bottom: 1px solid var(--border);
+      min-height: 48px;
+      transition: var(--transition);
+    }
+    #npExpr {
+      flex: 1;
+      font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
+      font-size: 21px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    #npPrev {
+      font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
+      font-size: 13px;
+      color: var(--sub);
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* system keyboard inline input */
+    #npKbWrap { display: none; flex: 1; align-items: center; gap: 8px; }
+    #npKbWrap.active { display: flex; }
+    #npKbWrap.active ~ #npExpr,
+    #npKbWrap.active ~ #npPrev { display: none; }
+    #npKbInp {
+      flex: 1;
+      font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
+      font-size: 21px;
+      font-weight: 600;
+      color: var(--accent);
+      background: none;
+      border: none;
+      outline: none;
+      letter-spacing: -0.5px;
+      min-width: 0;
+    }
+
+    /* numpad grid */
+    #npGrid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: rgba(0,0,0,0.13);
+    }
+    .nk {
+      background: var(--np-num);
+      border: none;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text);
+      height: 58px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: filter 0.08s;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .nk:active { filter: brightness(0.82); }
+    .nk.op    { background: var(--np-op); font-size: 21px; }
+    .nk.done  {
+      background: var(--np-done);
+      color: #fff;
+      font-size: 17px;
+      font-weight: 700;
+      grid-column: span 2;
+    }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%) translateY(14px);
+      background: rgba(15,15,15,0.82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: #fff;
+      padding: 9px 22px;
+      border-radius: 22px;
+      font-size: 13.5px;
+      font-weight: 600;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 99;
+      white-space: nowrap;
+      max-width: 90vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── MISC ── */
+    @media (min-width: 520px) {
+      body    { max-width: 520px; margin: 0 auto; }
+      #hdr    { border-radius: 0 0 16px 16px; }
+      #np     { max-width: 520px; left: 50%; transform: translateX(-50%) translateY(110%); }
+      #np.open{ transform: translateX(-50%) translateY(0); }
+      #pSheet { max-width: 520px; margin: 0 auto; border-radius: 22px 22px 0 0; }
+    }
+  </style>
 </head>
-<body class="p-4 md:p-6">
-    <div class="max-w-2xl mx-auto">
-        <header class="text-center mb-6">
-            <h1 class="text-3xl font-bold text-blue-600">Multi-Currency Converter</h1>
-            <p id="lastUpdated" class="text-sm text-gray-500 mt-1">Fetching latest rates...</p>
-        </header>
+<body>
 
-        <!-- Conversion List -->
-        <div id="conversionList" class="space-y-3">
-            <!-- Conversion rows will be dynamically inserted here -->
-        </div>
-
-        <!-- AI Feature Button -->
-        <div class="mt-6">
-            <button id="getTravelInsightBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg flex items-center justify-center space-x-2">
-                <i class="ph-airplane-takeoff text-2xl"></i>
-                <span>✨ Get Travel Insight</span>
-            </button>
-        </div>
+<!-- HEADER -->
+<header id="hdr">
+  <div class="hdr-left">
+    <h1>Sarf <span>صرف</span></h1>
+    <div class="badge">
+      <div class="dot fallback" id="fdot"></div>
+      <span id="ftxt">Fetching rates…</span>
     </div>
+  </div>
+  <div class="hdr-right">
+    <button class="ic" id="darkBtn" title="Dark mode">☽</button>
+  </div>
+</header>
 
-    <!-- AI Insight Modal -->
-    <div id="aiInsightModal" class="fixed inset-0 modal-bg items-center justify-center p-4">
-        <div class="bg-white p-6 rounded-lg shadow-2xl w-full max-w-md">
-            <h2 class="text-xl font-bold text-purple-600">Travel Budget Insight</h2>
-            <div class="my-4">
-                <p class="text-sm text-gray-600">Get an AI-powered estimate for your travel budget.</p>
-                <div class="mt-2">
-                    <label for="destinationCurrencySelect" class="block text-sm font-medium text-gray-700">Select Destination Currency</label>
-                    <select id="destinationCurrencySelect" class="mt-1 block w-full currency-select border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"></select>
-                </div>
-            </div>
-            <div id="aiInsightResult" class="mt-4 text-left p-3 bg-gray-50 rounded-lg min-h-[100px]">
-                <!-- AI response will be shown here -->
-            </div>
-            <div class="flex justify-between items-center mt-4">
-                <button onclick="closeModal('aiInsightModal')" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg">Close</button>
-                <button id="generateInsightBtn" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg flex items-center">
-                    <span class="mr-2">Generate</span>
-                    <div id="ai-spinner" class="spinner hidden"></div>
-                </button>
-            </div>
-        </div>
+<!-- ROW LIST -->
+<div id="rlist"></div>
+
+<!-- ADD CURRENCY -->
+<button id="addBtn">＋  Add Currency</button>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- CURRENCY PICKER -->
+<div id="pOvl">
+  <div id="pSheet">
+    <div class="pgrip"></div>
+    <div class="phdr">
+      <input id="pSrch" type="search" placeholder="Search currency…" autocomplete="off" autocorrect="off">
+      <button class="ic" id="pClose" style="font-size:13px;">✕</button>
     </div>
+    <div id="pList"></div>
+  </div>
+</div>
 
-    <script>
-        // --- CONFIGURATION & ELEMENTS ---
-        const conversionList = document.getElementById('conversionList');
-        const lastUpdatedEl = document.getElementById('lastUpdated');
-        
-        let rates = {};
-        let lastEditedRowIndex = 0;
-        const currencies = {
-            "USD": { name: "US Dollar", symbol: "$" }, "EUR": { name: "Euro", symbol: "€" }, "JPY": { name: "Japanese Yen", symbol: "¥" },
-            "GBP": { name: "British Pound", symbol: "£" }, "AUD": { name: "Australian Dollar", symbol: "A$" }, "CAD": { name: "Canadian Dollar", symbol: "C$" },
-            "CHF": { name: "Swiss Franc", symbol: "Fr" }, "CNY": { name: "Chinese Yuan", symbol: "¥" }, "SEK": { name: "Swedish Krona", symbol: "kr" },
-            "NZD": { name: "New Zealand Dollar", symbol: "NZ$" }, "MXN": { name: "Mexican Peso", symbol: "$" }, "SGD": { name: "Singapore Dollar", symbol: "S$" },
-            "HKD": { name: "Hong Kong Dollar", symbol: "HK$" }, "NOK": { name: "Norwegian Krone", symbol: "kr" }, "KRW": { name: "South Korean Won", symbol: "₩" },
-            "TRY": { name: "Turkish Lira", symbol: "₺" }, "RUB": { name: "Russian Ruble", symbol: "₽" }, "INR": { name: "Indian Rupee", symbol: "₹" },
-            "BRL": { name: "Brazilian Real", symbol: "R$" }, "ZAR": { name: "South African Rand", symbol: "R" }, "PKR": { name: "Pakistani Rupee", symbol: "Rs" },
-            "SAR": { name: "Saudi Riyal", symbol: "SR" }, "AED": { name: "UAE Dirham", symbol: "DH" }, "THB": { name: "Thai Baht", symbol: "฿" },
-            "MYR": { name: "Malaysian Ringgit", symbol: "RM" }
-        };
-        let targetCurrencies = ['PKR', 'CNY', 'EUR', 'TRY', 'USD', 'SAR', 'GBP', 'INR', 'AED', 'JPY'];
+<!-- NUMPAD -->
+<div id="np">
+  <div id="npBar">
+    <!-- system-keyboard inline mode (hidden by default) -->
+    <div id="npKbWrap">
+      <input id="npKbInp" type="text" inputmode="decimal" placeholder="Amount or expression…">
+      <button class="ic" id="npKbDone" style="font-size:13px;font-weight:700;color:var(--accent);border-color:var(--accent);">Done</button>
+    </div>
+    <!-- normal display -->
+    <span id="npExpr">0</span>
+    <span id="npPrev"></span>
+    <button class="ic" id="kbBtn" title="Use system keyboard" style="font-size:14px;">⌨</button>
+  </div>
+  <div id="npGrid">
+    <button class="nk"    data-k="7">7</button>
+    <button class="nk"    data-k="8">8</button>
+    <button class="nk"    data-k="9">9</button>
+    <button class="nk op" data-k="÷">÷</button>
 
-        // --- INITIALIZATION ---
-        document.addEventListener('DOMContentLoaded', () => {
-            loadState(); 
-            renderConversionRows();
-            fetchRates();
-            document.getElementById('getTravelInsightBtn').addEventListener('click', onOpenTravelInsightModal);
-            document.getElementById('generateInsightBtn').addEventListener('click', onGenerateInsight);
-        });
+    <button class="nk"    data-k="4">4</button>
+    <button class="nk"    data-k="5">5</button>
+    <button class="nk"    data-k="6">6</button>
+    <button class="nk op" data-k="×">×</button>
 
-        // --- CORE FUNCTIONS ---
-        async function fetchRates() {
-            const API_URL_USD_BASE = 'https://open.er-api.com/v6/latest/USD';
-            try {
-                const response = await fetch(API_URL_USD_BASE);
-                if (!response.ok) throw new Error('Network response was not ok');
-                const data = await response.json();
-                if (data.result === 'error') throw new Error(data['error-type']);
-                
-                rates = data.rates;
-                const date = new Date(data.time_last_update_utc).toLocaleDateString();
-                localStorage.setItem('currencyRates', JSON.stringify(rates));
-                localStorage.setItem('ratesDate', date);
-                displayRatesInfo(date, true);
-                
-                const firstInput = document.querySelector('.conversion-input[data-index="0"]');
-                if (firstInput && firstInput.value === '') {
-                    firstInput.value = '100.00';
-                }
-                const baseAmount = parseFloat(firstInput.value) || 100;
-                updateAllConversions(baseAmount, targetCurrencies[0], 0);
-                
-            } catch (error) {
-                console.error("Failed to fetch new rates:", error);
-                const savedRates = localStorage.getItem('currencyRates');
-                if (savedRates) {
-                    rates = JSON.parse(savedRates);
-                    const savedDate = localStorage.getItem('ratesDate');
-                    displayRatesInfo(savedDate, false);
-                    const firstInput = document.querySelector('.conversion-input[data-index="0"]');
-                     if (firstInput && firstInput.value === '') {
-                        firstInput.value = '100.00';
-                    }
-                    const baseAmount = parseFloat(firstInput.value) || 100;
-                    updateAllConversions(baseAmount, targetCurrencies[0], 0);
-                } else {
-                    lastUpdatedEl.textContent = "Could not fetch rates. Please check internet.";
-                }
-            }
-        }
-        
-        function convert(amount, fromCurrency, toCurrency) {
-            if (!rates[fromCurrency] || !rates[toCurrency]) return 0;
-            const amountInUSD = amount / rates[fromCurrency];
-            return amountInUSD * rates[toCurrency];
-        }
-        
-        function updateAllConversions(baseAmount, baseCurrency, editedRowIndex) {
-            document.querySelectorAll('.conversion-row').forEach((row, index) => {
-                if (index === editedRowIndex) return;
-                const outputInput = row.querySelector('.conversion-input');
-                const targetCurrency = row.querySelector('.target-currency-select').value;
-                const convertedAmount = convert(baseAmount, baseCurrency, targetCurrency);
-                outputInput.value = convertedAmount.toFixed(2);
-            });
-        }
+    <button class="nk"    data-k="1">1</button>
+    <button class="nk"    data-k="2">2</button>
+    <button class="nk"    data-k="3">3</button>
+    <button class="nk op" data-k="-">−</button>
 
-        function handleInputChange(event) {
-            const input = event.target;
-            const index = parseInt(input.dataset.index, 10);
-            lastEditedRowIndex = index;
-            const baseAmount = parseFloat(input.value) || 0;
-            const baseCurrency = document.querySelector(`.target-currency-select[data-index="${index}"]`).value;
-            updateAllConversions(baseAmount, baseCurrency, index);
-        }
+    <button class="nk op" data-k="C" style="font-size:17px;font-weight:700;">C</button>
+    <button class="nk"    data-k="0">0</button>
+    <button class="nk"    data-k=".">.</button>
+    <button class="nk op" data-k="+">+</button>
 
-        // --- UI RENDERING ---
-        function renderConversionRows() {
-            conversionList.innerHTML = '';
-            targetCurrencies.forEach((currency, index) => {
-                const row = document.createElement('div');
-                row.className = 'conversion-row bg-white p-3 md:p-4 rounded-lg shadow-md border border-gray-200 flex items-center justify-between space-x-2';
-                
-                const currencyOptionsHtml = Object.keys(currencies)
-                    .sort((a, b) => currencies[a].name.localeCompare(currencies[b].name))
-                    .map(code => `<option value="${code}" ${code === currency ? 'selected' : ''}>${code} - ${currencies[code].name}</option>`)
-                    .join('');
+    <button class="nk op" data-k="⌫" style="font-size:20px;">⌫</button>
+    <button class="nk op" data-k="=" style="font-size:24px;font-weight:600;">=</button>
+    <button class="nk done" data-k="Done">Done</button>
+  </div>
+</div>
 
-                row.innerHTML = `
-                    <div class="flex items-center flex-grow min-w-0">
-                        <span class="currency-symbol text-xl md:text-2xl font-bold text-gray-500 mr-2">${currencies[currency].symbol}</span>
-                        <input type="number" class="conversion-input w-full text-2xl md:text-3xl font-bold border-0 p-2 focus:ring-0 bg-transparent" data-index="${index}" placeholder="0.00" step="any">
-                    </div>
-                    <select class="target-currency-select currency-select text-base md:text-lg font-medium border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500" data-index="${index}">
-                        ${currencyOptionsHtml}
-                    </select>
-                `;
-                conversionList.appendChild(row);
-            });
-            
-            document.querySelectorAll('.conversion-input').forEach(input => input.addEventListener('input', handleInputChange));
-            document.querySelectorAll('.target-currency-select').forEach(select => {
-                select.addEventListener('change', (e) => {
-                    const index = parseInt(e.target.dataset.index, 10);
-                    const newCurrency = e.target.value;
-                    targetCurrencies[index] = newCurrency;
-                    
-                    const row = e.target.closest('.conversion-row');
-                    row.querySelector('.currency-symbol').textContent = currencies[newCurrency].symbol;
+<script>
+'use strict';
 
-                    const lastEditedInput = document.querySelector(`.conversion-input[data-index="${lastEditedRowIndex}"]`);
-                    const baseAmount = parseFloat(lastEditedInput.value) || 0;
-                    const baseCurrency = targetCurrencies[lastEditedRowIndex];
-                    updateAllConversions(baseAmount, baseCurrency, lastEditedRowIndex);
-                    
-                    saveState();
-                });
-            });
-        }
-        
-        function displayRatesInfo(date, isLive) {
-            lastUpdatedEl.textContent = `${isLive ? 'Live rates from' : 'Using offline rates from'} ${date}`;
-        }
-        
-        // --- STATE & LOCALSTORAGE ---
-        function saveState() {
-            localStorage.setItem('targetCurrencies', JSON.stringify(targetCurrencies));
-        }
+// ═══════════════════════════════════════════════
+// CURRENCIES  (flag + name, all USD-convertible)
+// ═══════════════════════════════════════════════
+const C = {
+  USD:{name:"US Dollar",        flag:"🇺🇸"},
+  EUR:{name:"Euro",             flag:"🇪🇺"},
+  GBP:{name:"British Pound",    flag:"🇬🇧"},
+  JPY:{name:"Japanese Yen",     flag:"🇯🇵"},
+  CNY:{name:"Chinese Yuan",     flag:"🇨🇳"},
+  PKR:{name:"Pakistani Rupee",  flag:"🇵🇰"},
+  INR:{name:"Indian Rupee",     flag:"🇮🇳"},
+  SAR:{name:"Saudi Riyal",      flag:"🇸🇦"},
+  AED:{name:"UAE Dirham",       flag:"🇦🇪"},
+  TRY:{name:"Turkish Lira",     flag:"🇹🇷"},
+  AUD:{name:"Australian Dollar",flag:"🇦🇺"},
+  CAD:{name:"Canadian Dollar",  flag:"🇨🇦"},
+  CHF:{name:"Swiss Franc",      flag:"🇨🇭"},
+  SGD:{name:"Singapore Dollar", flag:"🇸🇬"},
+  HKD:{name:"Hong Kong Dollar", flag:"🇭🇰"},
+  KRW:{name:"South Korean Won", flag:"🇰🇷"},
+  NOK:{name:"Norwegian Krone",  flag:"🇳🇴"},
+  SEK:{name:"Swedish Krona",    flag:"🇸🇪"},
+  NZD:{name:"New Zealand Dollar",flag:"🇳🇿"},
+  MXN:{name:"Mexican Peso",     flag:"🇲🇽"},
+  BRL:{name:"Brazilian Real",   flag:"🇧🇷"},
+  ZAR:{name:"South African Rand",flag:"🇿🇦"},
+  RUB:{name:"Russian Ruble",    flag:"🇷🇺"},
+  THB:{name:"Thai Baht",        flag:"🇹🇭"},
+  MYR:{name:"Malaysian Ringgit",flag:"🇲🇾"},
+  IDR:{name:"Indonesian Rupiah",flag:"🇮🇩"},
+  PHP:{name:"Philippine Peso",  flag:"🇵🇭"},
+  DKK:{name:"Danish Krone",     flag:"🇩🇰"},
+  PLN:{name:"Polish Zloty",     flag:"🇵🇱"},
+  CZK:{name:"Czech Koruna",     flag:"🇨🇿"},
+  HUF:{name:"Hungarian Forint", flag:"🇭🇺"},
+  ILS:{name:"Israeli Shekel",   flag:"🇮🇱"},
+  NGN:{name:"Nigerian Naira",   flag:"🇳🇬"},
+  EGP:{name:"Egyptian Pound",   flag:"🇪🇬"},
+  BDT:{name:"Bangladeshi Taka", flag:"🇧🇩"},
+  VND:{name:"Vietnamese Dong",  flag:"🇻🇳"},
+  TWD:{name:"Taiwan Dollar",    flag:"🇹🇼"},
+  QAR:{name:"Qatari Riyal",     flag:"🇶🇦"},
+  KWD:{name:"Kuwaiti Dinar",    flag:"🇰🇼"},
+  OMR:{name:"Omani Rial",       flag:"🇴🇲"},
+  BHD:{name:"Bahraini Dinar",   flag:"🇧🇭"},
+  NPR:{name:"Nepalese Rupee",   flag:"🇳🇵"},
+  LKR:{name:"Sri Lankan Rupee", flag:"🇱🇰"},
+  MNT:{name:"Mongolian Tugrik", flag:"🇲🇳"},
+  UAH:{name:"Ukrainian Hryvnia",flag:"🇺🇦"},
+  CLP:{name:"Chilean Peso",     flag:"🇨🇱"},
+  COP:{name:"Colombian Peso",   flag:"🇨🇴"},
+};
 
-        function loadState() {
-            const savedTargets = localStorage.getItem('targetCurrencies');
-            if (savedTargets) {
-                targetCurrencies = JSON.parse(savedTargets);
-            }
-        }
-        
-        // --- MODAL & AI ---
-        function openModal(modalId) { document.getElementById(modalId).classList.add('active'); }
-        function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
+// Baked-in fallback rates (USD base) — used offline or if both APIs fail
+const FALLBACK = {
+  USD:1,     EUR:0.918, GBP:0.789, JPY:149.5, CNY:7.236,
+  PKR:278.5, INR:83.1,  SAR:3.75,  AED:3.672, TRY:32.1,
+  AUD:1.529, CAD:1.356, CHF:0.893, SGD:1.340, HKD:7.822,
+  KRW:1325,  NOK:10.55, SEK:10.44, NZD:1.628, MXN:17.12,
+  BRL:4.97,  ZAR:18.63, RUB:89.5,  THB:35.1,  MYR:4.72,
+  IDR:15600, PHP:56.1,  DKK:6.89,  PLN:4.02,  CZK:22.7,
+  HUF:353,   ILS:3.71,  NGN:1480,  EGP:48.9,  BDT:109.5,
+  VND:24850, TWD:31.5,  QAR:3.64,  KWD:0.308, OMR:0.385,
+  BHD:0.376, NPR:132.5, LKR:309,   MNT:3370,  UAH:38.2,
+  CLP:921,   COP:3920,
+};
 
-        function onOpenTravelInsightModal() {
-            const destinationSelect = document.getElementById('destinationCurrencySelect');
-            const baseCurrency = targetCurrencies[lastEditedRowIndex];
-            
-            // Populate dropdown with all currencies EXCEPT the base currency
-            destinationSelect.innerHTML = Object.keys(currencies)
-                .filter(code => code !== baseCurrency)
-                .sort((a, b) => currencies[a].name.localeCompare(currencies[b].name))
-                .map(code => `<option value="${code}">${code} - ${currencies[code].name}</option>`)
-                .join('');
-            
-            document.getElementById('aiInsightResult').innerHTML = ''; // Clear previous results
-            openModal('aiInsightModal');
-        }
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let R       = {...FALLBACK};
+let rows    = ['PKR','CNY','EUR','TRY','USD','SAR','GBP','INR','AED','JPY'];
+let activeI = 0;
+let expr    = '';
+let dark    = false;
+let npOpen  = false;
+let picFor  = -1;
+let tTmr    = null;
+let tDragSrc = null;
 
-        async function onGenerateInsight() {
-            const btn = document.getElementById('generateInsightBtn');
-            const spinner = document.getElementById('ai-spinner');
-            const resultDiv = document.getElementById('aiInsightResult');
+// ═══════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  loadState();
+  render();
+  fetchRates();
+  initNumpad();
 
-            btn.disabled = true;
-            spinner.classList.remove('hidden');
-            resultDiv.innerHTML = '';
+  document.getElementById('addBtn').addEventListener('click', addRow);
+  document.getElementById('darkBtn').addEventListener('click', toggleDark);
+  document.getElementById('pClose').addEventListener('click', closePicker);
+  document.getElementById('pOvl').addEventListener('click', e => {
+    if (e.target.id === 'pOvl') closePicker();
+  });
+  document.getElementById('pSrch').addEventListener('input', filterPicker);
+  document.getElementById('kbBtn').addEventListener('click', useSystemKb);
+  document.getElementById('npKbDone').addEventListener('click', closeSystemKb);
 
-            const baseAmount = parseFloat(document.querySelector(`.conversion-input[data-index="${lastEditedRowIndex}"]`).value) || 0;
-            const baseCurrencyCode = targetCurrencies[lastEditedRowIndex];
-            const destinationCurrencyCode = document.getElementById('destinationCurrencySelect').value;
-            const convertedAmount = convert(baseAmount, baseCurrencyCode, destinationCurrencyCode);
+  // Tap outside numpad closes it
+  document.addEventListener('pointerdown', e => {
+    if (!npOpen) return;
+    const np = document.getElementById('np');
+    if (!np.contains(e.target) && !e.target.closest('.rr') && !e.target.closest('#addBtn')) {
+      closeNumpad();
+    }
+  });
+});
 
-            const prompt = `I have ${baseAmount.toFixed(2)} ${currencies[baseCurrencyCode].name} (${baseCurrencyCode}), which is about ${convertedAmount.toFixed(2)} ${currencies[destinationCurrencyCode].name} (${destinationCurrencyCode}). I am planning a trip. Provide a brief, bulleted list of what this amount of money could typically cover for a solo traveler for one day in a major city of the destination country. Focus on mid-range options (e.g., a decent meal, not fine dining; public transport, not taxis). Keep the tone helpful and concise.`;
+// ═══════════════════════════════════════════════
+// RATE FETCHING  (4-hour smart cache)
+// ═══════════════════════════════════════════════
+const CACHE_MS = 4 * 60 * 60 * 1000;
 
-            const result = await callGemini(prompt);
-            resultDiv.innerHTML = result.replace(/\n/g, '<br>').replace(/\*/g, '&bull; '); // Basic markdown conversion
+async function fetchRates() {
+  const saved = localStorage.getItem('sarf_R');
+  const ts    = +(localStorage.getItem('sarf_T') || 0);
+  const age   = Date.now() - ts;
 
-            btn.disabled = false;
-            spinner.classList.add('hidden');
-        }
+  if (saved && age < CACHE_MS) {
+    R = JSON.parse(saved);
+    setStatus(age < 3_600_000 ? 'live' : 'cached', ts);
+    refresh();
+    if (age > 3_600_000) silentFetch(); // background refresh if > 1 h old
+    return;
+  }
+  await silentFetch();
+}
 
-        async function callGemini(prompt) {
-            const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=`; // Key is blank for security
-            const payload = { contents: [{ parts: [{ text: prompt }] }] };
-            try {
-                const response = await fetch(GEMINI_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!response.ok) throw new Error(`API error: ${response.statusText}`);
-                const data = await response.json();
-                return data.candidates[0].content.parts[0].text;
-            } catch (error) {
-                console.error("Gemini API call failed:", error);
-                return "Could not retrieve AI insight at this time. Please check your connection.";
-            }
-        }
-        
-    </script>
-    
-    <!-- PWA Functionality -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('service-worker.js').catch(err => console.error('SW reg failed: ', err));
-            });
-        }
-    </script>
-    
-    <!-- Virtual Files for PWA -->
-    <script>
-        if (window.location.pathname.endsWith('/manifest.json')) {
-            const manifest = {
-                "name": "Multi-Currency Converter", "short_name": "Converter", "start_url": ".", "display": "standalone",
-                "background_color": "#f3f4f6", "theme_color": "#ffffff", "description": "An offline-first multi-currency converter.",
-                "icons": [{"src": "https://placehold.co/192x192/2563eb/ffffff?text=C", "sizes": "192x192", "type": "image/png"},
-                          {"src": "https://placehold.co/512x512/2563eb/ffffff?text=C", "sizes": "512x512", "type": "image/png"}]
-            };
-            self.addEventListener('fetch', e => e.respondWith(new Response(JSON.stringify(manifest), { headers: { 'Content-Type': 'application/json' } })));
-        }
-        
-        if (window.location.pathname.endsWith('/service-worker.js')) {
-            const swContent = `
-                const CACHE_NAME = 'currency-converter-v4';
-                const ASSETS_TO_CACHE = ['/', 'index.html', 'https://cdn.tailwindcss.com', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap'];
-                self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS_TO_CACHE))));
-                self.addEventListener('activate', e => e.waitUntil(caches.keys().then(n => Promise.all(n.map(c => c !== CACHE_NAME ? caches.delete(c) : null)))));
-                self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
-            `;
-            self.addEventListener('fetch', e => e.respondWith(new Response(swContent, { headers: { 'Content-Type': 'application/javascript' } })));
-        }
-    </script>
+async function silentFetch() {
+  const get = async (url) => {
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), 7000);
+    try {
+      const r = await fetch(url, {signal: ac.signal});
+      clearTimeout(tid);
+      return r.ok ? r.json() : null;
+    } catch { clearTimeout(tid); return null; }
+  };
+
+  // Primary: open.er-api (covers PKR + 160 currencies, free)
+  let d = await get('https://open.er-api.com/v6/latest/USD');
+  if (d && d.rates) {
+    R = {...FALLBACK, ...d.rates};
+    saveR(); setStatus('live', Date.now()); refresh(); return;
+  }
+
+  // Secondary: Frankfurter / ECB (very reliable, fewer currencies)
+  d = await get('https://api.frankfurter.app/latest?from=USD');
+  if (d && d.rates) {
+    R = {...FALLBACK, ...d.rates, USD:1};
+    saveR(); setStatus('live', Date.now()); refresh(); return;
+  }
+
+  // Offline fallback
+  const saved = localStorage.getItem('sarf_R');
+  if (saved) {
+    R = JSON.parse(saved);
+    setStatus('stale', +(localStorage.getItem('sarf_T') || 0));
+  } else {
+    setStatus('fallback', 0);
+  }
+  refresh();
+}
+
+function saveR() {
+  localStorage.setItem('sarf_R', JSON.stringify(R));
+  localStorage.setItem('sarf_T', String(Date.now()));
+}
+
+function setStatus(s, ts) {
+  const dot = document.getElementById('fdot');
+  const txt = document.getElementById('ftxt');
+  dot.className = 'dot ' + s;
+  const t = ts ? new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
+  txt.textContent = {
+    live:    `Live · ${t}`,
+    cached:  `Cached · ${t}`,
+    stale:   `Stale · ${t}`,
+    fallback:'Offline (built-in rates)',
+  }[s] || s;
+}
+
+// ═══════════════════════════════════════════════
+// CONVERSION & FORMATTING
+// ═══════════════════════════════════════════════
+function convert(amt, from, to) {
+  if (!R[from] || !R[to]) return 0;
+  return (amt / R[from]) * R[to];
+}
+
+function getAmt() {
+  const v = safeEval(expr);
+  return (!isNaN(v) && isFinite(v)) ? v : 0;
+}
+
+function fmt(n) {
+  if (isNaN(n) || !isFinite(n)) return '—';
+  const a = Math.abs(n);
+  let dec = 2;
+  if      (a === 0)   dec = 2;
+  else if (a < 0.01)  dec = 6;
+  else if (a < 1)     dec = 4;
+  else if (a >= 1e7)  dec = 0;
+  else if (a >= 1000) dec = 2;
+  return n.toLocaleString(undefined, {minimumFractionDigits: dec, maximumFractionDigits: dec});
+}
+
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+function render() {
+  const list = document.getElementById('rlist');
+  list.innerHTML = '';
+  rows.forEach((code, i) => list.appendChild(makeRow(code, i)));
+  if (!expr) expr = '1';
+  refresh();
+}
+
+function makeRow(code, i) {
+  const cur = C[code] || {name: code, flag:'🏳️'};
+  const el  = document.createElement('div');
+  el.className = 'row' + (i === activeI ? ' active' : '');
+  el.dataset.i = i;
+  el.innerHTML = `
+    <div class="rl">
+      <div class="dh" data-i="${i}" title="Drag to reorder">≡≡</div>
+      <button class="cb" data-i="${i}">
+        <span class="fl">${cur.flag}</span>
+        <span class="cd">${code}</span>
+      </button>
+      <button class="rm" data-i="${i}" ${rows.length <= 2 ? 'style="visibility:hidden"' : ''}>✕</button>
+    </div>
+    <div class="rr" data-i="${i}">
+      <div class="amtrow">
+        <span class="amt">—</span>
+        <button class="cp" data-i="${i}" title="Copy">⧉</button>
+      </div>
+      <div class="unit"></div>
+    </div>`;
+
+  el.querySelector('.rr').addEventListener('click', () => activateRow(i));
+  el.querySelector('.cb').addEventListener('click', e => { e.stopPropagation(); openPicker(i); });
+  el.querySelector('.rm').addEventListener('click', e => { e.stopPropagation(); removeRow(i); });
+  el.querySelector('.cp').addEventListener('click', e => { e.stopPropagation(); copyRow(i); });
+
+  setupTouchDrag(el.querySelector('.dh'), el, i);
+  setupMouseDrag(el.querySelector('.dh'), el, i);
+  return el;
+}
+
+function refresh() {
+  const src  = rows[activeI];
+  const amt  = getAmt();
+  document.querySelectorAll('.row').forEach((el, i) => {
+    const code   = rows[i];
+    const amtEl  = el.querySelector('.amt');
+    const unitEl = el.querySelector('.unit');
+    const val    = (i === activeI) ? amt : convert(amt, src, code);
+    amtEl.textContent = fmt(val);
+    if (i !== activeI && src !== code) {
+      unitEl.textContent = `1 ${src} = ${fmt(convert(1, src, code))} ${code}`;
+    } else {
+      unitEl.textContent = '';
+    }
+  });
+  updateNpDisplay();
+}
+
+// ═══════════════════════════════════════════════
+// ROW MANAGEMENT
+// ═══════════════════════════════════════════════
+function activateRow(i) {
+  if (i !== activeI) {
+    const converted = convert(getAmt(), rows[activeI], rows[i]);
+    expr = cleanNum(converted);
+    activeI = i;
+    document.querySelectorAll('.row').forEach((el, idx) => el.classList.toggle('active', idx === i));
+  }
+  refresh();
+  openNumpad();
+}
+
+function addRow() {
+  const used = new Set(rows);
+  const next = Object.keys(C).find(k => !used.has(k)) || 'CHF';
+  rows.push(next);
+  activeI = rows.length - 1;
+  render(); saveState(); openNumpad();
+}
+
+function removeRow(i) {
+  if (rows.length <= 2) return;
+  rows.splice(i, 1);
+  if (activeI >= rows.length) activeI = rows.length - 1;
+  render(); saveState();
+}
+
+function copyRow(i) {
+  const code = rows[i];
+  const val  = (i === activeI) ? getAmt() : convert(getAmt(), rows[activeI], code);
+  const text = fmt(val) + ' ' + code;
+  (navigator.clipboard?.writeText(text) || Promise.reject()).catch(() => {
+    const t = document.createElement('textarea');
+    t.value = text; document.body.appendChild(t);
+    t.select(); document.execCommand('copy');
+    document.body.removeChild(t);
+  }).finally(() => showToast('Copied: ' + text));
+}
+
+// ═══════════════════════════════════════════════
+// CURRENCY PICKER
+// ═══════════════════════════════════════════════
+function openPicker(i) {
+  picFor = i;
+  document.getElementById('pSrch').value = '';
+  renderPickerList(Object.keys(C));
+  document.getElementById('pOvl').classList.add('open');
+  setTimeout(() => document.getElementById('pSrch').focus(), 320);
+}
+
+function closePicker() {
+  document.getElementById('pOvl').classList.remove('open');
+}
+
+function filterPicker() {
+  const q = document.getElementById('pSrch').value.toLowerCase().trim();
+  const codes = Object.keys(C).filter(k =>
+    k.toLowerCase().includes(q) || C[k].name.toLowerCase().includes(q)
+  );
+  renderPickerList(codes);
+}
+
+function renderPickerList(codes) {
+  const el = document.getElementById('pList');
+  if (!codes.length) {
+    el.innerHTML = '<div class="pempty">No currencies found</div>';
+    return;
+  }
+  const sorted = [...codes].sort((a,b) => C[a].name.localeCompare(C[b].name));
+  el.innerHTML = sorted.map(code => {
+    const cur = C[code];
+    const sel = rows[picFor] === code ? ' sel' : '';
+    return `<div class="pi${sel}" data-code="${code}">
+      <span class="pifl">${cur.flag}</span>
+      <div><div class="picode">${code}</div><div class="piname">${cur.name}</div></div>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.pi').forEach(item => {
+    item.addEventListener('click', () => {
+      rows[picFor] = item.dataset.code;
+      closePicker(); render(); saveState();
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════
+// NUMPAD
+// ═══════════════════════════════════════════════
+function initNumpad() {
+  document.querySelectorAll('.nk').forEach(btn => {
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      handleKey(btn.dataset.k);
+    });
+  });
+}
+
+function openNumpad() {
+  document.getElementById('np').classList.add('open');
+  npOpen = true;
+  exitSystemKb();
+  updateNpDisplay();
+}
+
+function closeNumpad() {
+  exitSystemKb();
+  document.getElementById('np').classList.remove('open');
+  npOpen = false;
+}
+
+function updateNpDisplay() {
+  const exprEl = document.getElementById('npExpr');
+  const prevEl = document.getElementById('npPrev');
+  exprEl.textContent = expr || '0';
+  const v = safeEval(expr);
+  const hasOp = /[+\-*/÷×]/.test(expr);
+  prevEl.textContent = (hasOp && !isNaN(v) && isFinite(v)) ? ('= ' + fmt(v)) : '';
+}
+
+const OPS_END = /[+\-*/]$/;
+
+function handleKey(k) {
+  switch (k) {
+    case 'C':  expr = ''; break;
+    case '⌫':  expr = expr.slice(0,-1); break;
+
+    case '=': {
+      const v = safeEval(expr);
+      if (!isNaN(v) && isFinite(v)) expr = cleanNum(v);
+      break;
+    }
+    case 'Done': {
+      const v = safeEval(expr);
+      if (!isNaN(v) && isFinite(v)) expr = cleanNum(v);
+      closeNumpad(); return;
+    }
+
+    case '÷': if (expr && !OPS_END.test(expr)) expr += '/'; break;
+    case '×': if (expr && !OPS_END.test(expr)) expr += '*'; break;
+    case '+': if (expr && !OPS_END.test(expr)) expr += '+'; break;
+    case '-': case '−':
+      if (!expr) { expr = '-'; break; }
+      if (!OPS_END.test(expr)) expr += '-';
+      break;
+
+    case '.': case ',': {
+      const seg = expr.split(/[+\-*/]/).pop();
+      if (!seg.includes('.')) expr += '.';
+      break;
+    }
+    default:
+      if (/^[0-9]$/.test(k)) expr += k;
+  }
+  updateNpDisplay();
+  refresh();
+}
+
+// ═══════════════════════════════════════════════
+// SAFE EVAL  (no evil eval, uses Function constructor)
+// ═══════════════════════════════════════════════
+function safeEval(e) {
+  if (!e || e === '-') return 0;
+  const n = e.replace(/×/g,'*').replace(/÷/g,'/').replace(/,/g,'.');
+  if (!/^[0-9+\-*/.() \s]+$/.test(n)) return NaN;
+  const trimmed = n.replace(/[+\-*/.\s]+$/, '');
+  if (!trimmed) return 0;
+  try {
+    const v = Function('"use strict";return (' + trimmed + ')')();
+    return typeof v === 'number' ? v : NaN;
+  } catch { return NaN; }
+}
+
+function cleanNum(n) {
+  if (n === 0) return '0';
+  // Use up to 6 sig figs, strip trailing zeros
+  const s = parseFloat(n.toPrecision(8)).toString();
+  return s;
+}
+
+// ═══════════════════════════════════════════════
+// SYSTEM KEYBOARD MODE
+// ═══════════════════════════════════════════════
+function useSystemKb() {
+  const wrap = document.getElementById('npKbWrap');
+  const inp  = document.getElementById('npKbInp');
+  wrap.classList.add('active');
+  inp.value = expr;
+  inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+
+  // Disable numpad grid interactions
+  document.getElementById('npGrid').style.opacity = '0.35';
+  document.getElementById('npGrid').style.pointerEvents = 'none';
+
+  inp.oninput = () => {
+    expr = inp.value.replace(/,/g, '.');
+    updateNpDisplay(); refresh();
+  };
+  inp.onkeydown = e => {
+    if (e.key === 'Enter') { e.preventDefault(); closeSystemKb(); }
+  };
+}
+
+function closeSystemKb() {
+  const v = safeEval(expr);
+  if (!isNaN(v) && isFinite(v) && expr) expr = cleanNum(v);
+  exitSystemKb();
+  refresh();
+}
+
+function exitSystemKb() {
+  const wrap = document.getElementById('npKbWrap');
+  const inp  = document.getElementById('npKbInp');
+  wrap.classList.remove('active');
+  inp.blur();
+  document.getElementById('npGrid').style.opacity = '';
+  document.getElementById('npGrid').style.pointerEvents = '';
+}
+
+// ═══════════════════════════════════════════════
+// DRAG — TOUCH (via ≡≡ handle)
+// ═══════════════════════════════════════════════
+function setupTouchDrag(handle, rowEl, idx) {
+  handle.addEventListener('touchstart', e => {
+    e.preventDefault();
+    tDragSrc = idx;
+    rowEl.classList.add('dragging');
+  }, {passive: false});
+
+  handle.addEventListener('touchmove', e => {
+    if (tDragSrc === null) return;
+    e.preventDefault();
+    const y = e.touches[0].clientY;
+    document.querySelectorAll('.row').forEach(r => r.classList.remove('drag-over'));
+    for (const r of document.querySelectorAll('.row')) {
+      const rect = r.getBoundingClientRect();
+      if (y >= rect.top && y <= rect.bottom && +r.dataset.i !== tDragSrc) {
+        r.classList.add('drag-over'); break;
+      }
+    }
+  }, {passive: false});
+
+  handle.addEventListener('touchend', e => {
+    if (tDragSrc === null) return;
+    const y = e.changedTouches[0].clientY;
+    let target = tDragSrc;
+    document.querySelectorAll('.row').forEach(r => {
+      r.classList.remove('drag-over', 'dragging');
+      r.style.opacity = '';
+      const rect = r.getBoundingClientRect();
+      if (y >= rect.top && y <= rect.bottom) target = +r.dataset.i;
+    });
+    if (target !== tDragSrc) doReorder(tDragSrc, target);
+    tDragSrc = null;
+  });
+}
+
+// ═══════════════════════════════════════════════
+// DRAG — MOUSE/DESKTOP (via ≡≡ handle)
+// ═══════════════════════════════════════════════
+function setupMouseDrag(handle, rowEl, idx) {
+  handle.addEventListener('mousedown', () => {
+    rowEl.draggable = true;
+    rowEl.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', String(idx));
+      rowEl.classList.add('dragging');
+    }, {once: true});
+    const cleanup = () => { rowEl.draggable = false; rowEl.classList.remove('dragging'); };
+    rowEl.addEventListener('dragend', cleanup, {once: true});
+    document.addEventListener('mouseup', cleanup, {once: true});
+  });
+
+  rowEl.addEventListener('dragover', e => {
+    e.preventDefault();
+    rowEl.classList.add('drag-over');
+  });
+  rowEl.addEventListener('dragleave', () => rowEl.classList.remove('drag-over'));
+  rowEl.addEventListener('drop', e => {
+    e.preventDefault();
+    rowEl.classList.remove('drag-over');
+    const src = parseInt(e.dataTransfer.getData('text/plain'));
+    if (!isNaN(src) && src !== idx) doReorder(src, idx);
+  });
+}
+
+function doReorder(from, to) {
+  const moved = rows.splice(from, 1)[0];
+  rows.splice(to, 0, moved);
+  // Adjust activeI
+  if      (activeI === from)                       activeI = to;
+  else if (activeI > from && activeI <= to)        activeI--;
+  else if (activeI < from && activeI >= to)        activeI++;
+  render(); saveState();
+}
+
+// ═══════════════════════════════════════════════
+// DARK MODE
+// ═══════════════════════════════════════════════
+function toggleDark() {
+  dark = !dark; applyDark();
+  localStorage.setItem('sarf_dark', dark ? '1' : '0');
+}
+function applyDark() {
+  document.documentElement.toggleAttribute('data-dark', dark);
+  document.getElementById('darkBtn').textContent = dark ? '☀' : '☽';
+  document.getElementById('mTheme').content = dark ? '#0C0C0E' : '#F5F0E8';
+}
+
+// ═══════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(tTmr);
+  tTmr = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ═══════════════════════════════════════════════
+// PERSISTENCE
+// ═══════════════════════════════════════════════
+function saveState() {
+  localStorage.setItem('sarf_rows', JSON.stringify(rows));
+}
+
+function loadState() {
+  try {
+    const r = localStorage.getItem('sarf_rows');
+    if (r) {
+      const parsed = JSON.parse(r);
+      const valid  = parsed.filter(k => C[k]);
+      if (valid.length >= 2) rows = valid;
+    }
+  } catch {}
+  dark = localStorage.getItem('sarf_dark') === '1';
+  applyDark();
+}
+</script>
 </body>
 </html>
