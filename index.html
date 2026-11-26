@@ -634,6 +634,7 @@ let npOpen  = false;
 let picFor  = -1;
 let tTmr    = null;
 let tDragSrc = null;
+let freshInput = true;   // next digit replaces the shown value
 
 // ═══════════════════════════════════════════════
 // BOOT
@@ -676,7 +677,7 @@ async function fetchRates() {
 
   if (saved && age < CACHE_MS) {
     R = JSON.parse(saved);
-    setStatus(age < 3_600_000 ? 'live' : 'cached', ts);
+    setStatus(age < 3_600_000 ? 'live' : 'cached', rateTime());
     refresh();
     if (age > 3_600_000) silentFetch(); // background refresh if > 1 h old
     return;
@@ -699,41 +700,57 @@ async function silentFetch() {
   let d = await get('https://open.er-api.com/v6/latest/USD');
   if (d && d.rates) {
     R = {...FALLBACK, ...d.rates};
-    saveR(); setStatus('live', Date.now()); refresh(); return;
+    saveR(d.time_last_update_unix ? d.time_last_update_unix * 1000 : 0);
+    setStatus('live', rateTime()); refresh(); return;
   }
 
   // Secondary: Frankfurter / ECB (very reliable, fewer currencies)
   d = await get('https://api.frankfurter.app/latest?from=USD');
   if (d && d.rates) {
     R = {...FALLBACK, ...d.rates, USD:1};
-    saveR(); setStatus('live', Date.now()); refresh(); return;
+    saveR(d.date ? Date.parse(d.date + 'T16:00:00Z') : 0); // ECB publishes ~16:00 CET
+    setStatus('live', rateTime()); refresh(); return;
   }
 
   // Offline fallback
   const saved = localStorage.getItem('sarf_R');
   if (saved) {
     R = JSON.parse(saved);
-    setStatus('stale', +(localStorage.getItem('sarf_T') || 0));
+    setStatus('stale', rateTime());
   } else {
     setStatus('fallback', 0);
   }
   refresh();
 }
 
-function saveR() {
+// sarf_T = when we downloaded (drives the cache); sarf_U = when the provider
+// last updated the rates (what we show to the user)
+function saveR(updated) {
   localStorage.setItem('sarf_R', JSON.stringify(R));
   localStorage.setItem('sarf_T', String(Date.now()));
+  localStorage.setItem('sarf_U', String(updated || Date.now()));
+}
+
+function rateTime() {
+  return +(localStorage.getItem('sarf_U') || localStorage.getItem('sarf_T') || 0);
 }
 
 function setStatus(s, ts) {
   const dot = document.getElementById('fdot');
   const txt = document.getElementById('ftxt');
   dot.className = 'dot ' + s;
-  const t = ts ? new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
+  let t = '';
+  if (ts) {
+    const d = new Date(ts);
+    const time = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    t = d.toDateString() === new Date().toDateString()
+      ? time
+      : d.toLocaleDateString([], {day:'numeric', month:'short'}) + ' ' + time;
+  }
   txt.textContent = {
-    live:    `Live · ${t}`,
-    cached:  `Cached · ${t}`,
-    stale:   `Stale · ${t}`,
+    live:    `Live · rates from ${t}`,
+    cached:  `Cached · rates from ${t}`,
+    stale:   `Offline · rates from ${t}`,
     fallback:'Offline (built-in rates)',
   }[s] || s;
 }
@@ -770,7 +787,7 @@ function render() {
   const list = document.getElementById('rlist');
   list.innerHTML = '';
   rows.forEach((code, i) => list.appendChild(makeRow(code, i)));
-  if (!expr) expr = '1';
+  if (!expr) expr = '0';
   refresh();
 }
 
@@ -836,14 +853,17 @@ function activateRow(i) {
   }
   refresh();
   openNumpad();
+  freshInput = true;   // typing after tapping a row starts a new number
 }
 
 function addRow() {
   const used = new Set(rows);
   const next = Object.keys(C).find(k => !used.has(k)) || 'CHF';
   rows.push(next);
+  expr = cleanNum(convert(getAmt(), rows[activeI], next));
   activeI = rows.length - 1;
   render(); saveState(); openNumpad();
+  freshInput = true;
 }
 
 function removeRow(i) {
@@ -905,7 +925,20 @@ function renderPickerList(codes) {
   }).join('');
   el.querySelectorAll('.pi').forEach(item => {
     item.addEventListener('click', () => {
-      rows[picFor] = item.dataset.code;
+      const code = item.dataset.code;
+      const old  = rows[picFor];
+      const dup  = rows.indexOf(code);
+      if (dup !== -1 && dup !== picFor) {
+        // Already on screen: swap the two rows instead of creating a duplicate,
+        // and keep the typed amount attached to its currency.
+        const activeCode = rows[activeI];
+        rows[dup] = old;
+        rows[picFor] = code;
+        activeI = rows.indexOf(activeCode);
+        showToast(`Swapped ${old} ↔ ${code}`);
+      } else {
+        rows[picFor] = code;
+      }
       closePicker(); render(); saveState();
     });
   });
@@ -946,8 +979,15 @@ function updateNpDisplay() {
 }
 
 const OPS_END = /[+\-*/]$/;
+const OP_MAP  = {'÷':'/', '×':'*', '+':'+', '-':'-', '−':'-'};
 
 function handleKey(k) {
+  // "Start fresh": the first digit or "." after tapping a row (or after = )
+  // replaces the shown value instead of being appended to it.
+  // Operators and ⌫ keep working on the shown value.
+  const wasFresh = freshInput;
+  freshInput = false;
+
   switch (k) {
     case 'C':  expr = ''; break;
     case '⌫':  expr = expr.slice(0,-1); break;
@@ -955,6 +995,7 @@ function handleKey(k) {
     case '=': {
       const v = safeEval(expr);
       if (!isNaN(v) && isFinite(v)) expr = cleanNum(v);
+      freshInput = true;
       break;
     }
     case 'Done': {
@@ -963,21 +1004,35 @@ function handleKey(k) {
       closeNumpad(); return;
     }
 
-    case '÷': if (expr && !OPS_END.test(expr)) expr += '/'; break;
-    case '×': if (expr && !OPS_END.test(expr)) expr += '*'; break;
-    case '+': if (expr && !OPS_END.test(expr)) expr += '+'; break;
-    case '-': case '−':
-      if (!expr) { expr = '-'; break; }
-      if (!OPS_END.test(expr)) expr += '-';
+    case '÷': case '×': case '+': case '-': case '−': {
+      const op = OP_MAP[k];
+      if (!expr || expr === '0') {
+        if (op === '-') expr = '-';         // start a negative number
+      } else if (expr === '-') {
+        // lone minus: nothing to apply an operator to
+      } else if (OPS_END.test(expr)) {
+        expr = expr.slice(0, -1) + op;      // replace the previous operator
+      } else {
+        expr += op;
+      }
       break;
+    }
 
     case '.': case ',': {
+      if (wasFresh) { expr = '0.'; break; }
       const seg = expr.split(/[+\-*/]/).pop();
-      if (!seg.includes('.')) expr += '.';
+      if (!seg) expr += '0.';
+      else if (!seg.includes('.')) expr += '.';
       break;
     }
     default:
-      if (/^[0-9]$/.test(k)) expr += k;
+      if (/^[0-9]$/.test(k)) {
+        if (wasFresh) { expr = k; break; }
+        const seg = expr.split(/[+\-*/]/).pop();
+        // no leading zeros: "0" then "5" becomes "5", not "05"
+        if (seg === '0') expr = expr.slice(0, -1) + k;
+        else expr += k;
+      }
   }
   updateNpDisplay();
   refresh();
@@ -990,7 +1045,8 @@ function safeEval(e) {
   if (!e || e === '-') return 0;
   const n = e.replace(/×/g,'*').replace(/÷/g,'/').replace(/,/g,'.');
   if (!/^[0-9+\-*/.() \s]+$/.test(n)) return NaN;
-  const trimmed = n.replace(/[+\-*/.\s]+$/, '');
+  // strip leading zeros ("05" is a syntax error in strict mode)
+  const trimmed = n.replace(/[+\-*/.\s]+$/, '').replace(/(^|[^\d.])0+(?=\d)/g, '$1');
   if (!trimmed) return 0;
   try {
     const v = Function('"use strict";return (' + trimmed + ')')();
@@ -999,10 +1055,13 @@ function safeEval(e) {
 }
 
 function cleanNum(n) {
-  if (n === 0) return '0';
-  // Use up to 6 sig figs, strip trailing zeros
-  const s = parseFloat(n.toPrecision(8)).toString();
-  return s;
+  if (!n || !isFinite(n)) return '0';
+  // Always plain digits (never "1.2e-7"): big numbers keep every whole digit,
+  // small ones keep 8 significant figures
+  const opts = Math.abs(n) >= 1
+    ? {useGrouping: false, maximumFractionDigits: 6}
+    : {useGrouping: false, maximumSignificantDigits: 8};
+  return n.toLocaleString('en-US', opts);
 }
 
 // ═══════════════════════════════════════════════
@@ -1014,14 +1073,20 @@ function useSystemKb() {
   wrap.classList.add('active');
   inp.value = expr;
   inp.focus();
-  inp.setSelectionRange(inp.value.length, inp.value.length);
+  // Select everything so the first keystroke replaces the value (start fresh)
+  if (freshInput) inp.select();
+  else inp.setSelectionRange(inp.value.length, inp.value.length);
+  freshInput = false;
 
   // Disable numpad grid interactions
   document.getElementById('npGrid').style.opacity = '0.35';
   document.getElementById('npGrid').style.pointerEvents = 'none';
 
   inp.oninput = () => {
-    expr = inp.value.replace(/,/g, '.');
+    // only allow numbers and operators — drop letters and anything else
+    const clean = inp.value.replace(/[^0-9+\-*/.,×÷() ]/g, '');
+    if (clean !== inp.value) inp.value = clean;
+    expr = clean.replace(/,/g, '.').replace(/×/g, '*').replace(/÷/g, '/');
     updateNpDisplay(); refresh();
   };
   inp.onkeydown = e => {
